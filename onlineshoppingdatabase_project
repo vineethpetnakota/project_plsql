@@ -1,0 +1,1009 @@
+/*Title – An Online based Shopping Database system
+ Objective - The aim of this project is to create and execute a thorough online marketplace platform, utilizing an Oracle database, to empower our customer to rival industry leaders such as Amazon and Walmart. Our team will prioritize the creation of a refined database structure, the development of crucial tables, and the designing of efficient PL/SQL stored procedures. The operations would encompass essential features, including product management, storage of client information, processing of orders, generation of invoices, and provision of individualized product suggestions. Furthermore, the project seeks to provide comprehensive reports that offer valuable information for managerial decision-making. These reports will offer a comprehensive overview of the business's performance during specified time periods and provide in-depth analysis of product sales. Our objective is to provide our customer with an innovative online marketplace that distinguishes itself in the competitive market through careful design, testing, and implementation. */
+
+--Team Name – Oracle Minds
+ -- Member 1: Dasavanth Reddy Theramreddy Campus ID RY75492
+-- Member 2: Kavitha Ceela Campus ID JB45778
+-- Member 3: Shalini Veeravalli Campus ID JV93693
+-- Member 4: Somita Chaudhari Campus ID ND94179
+-- Member 5: Vineeth Petnakota Campus ID RX82617
+-- Member 6: Sundeep Vunnamatla Campus ID VD29493
+
+--Overall code :
+
+
+set serveroutput on;
+--drop comments to drop all the tables 
+drop table invoices;
+drop table credit_cards;
+drop table orders;
+drop table products;
+drop table productcategories;
+drop table customers;
+drop table recommendations;
+drop table reviews;
+
+CREATE table customers (
+	customer_ID NUMBER,
+	f_name VARCHAR(100),
+    	l_name varchar(100),
+	customer_city VARCHAR(100),
+	customer_email VARCHAR(100),
+	customer_state VARCHAR(100),
+	customer_zip NUMBER(5),
+	PRIMARY KEY(customer_ID)
+);
+
+--creating creditcards table
+create table credit_cards(
+credit_card_number integer,
+customer_ID integer,
+credit_card_type varchar(20),
+exp_year integer,
+exp_month integer,
+primary key (credit_card_number),
+foreign key (customer_ID) references customers(customer_ID)
+);
+
+--member 1 task 1
+
+create or replace procedure Add_Customer
+(cust_id in customers.customer_ID%type,
+cust_name in customers.f_name%type,
+last_name in customers.l_name%type,
+cust_email in customers.customer_email%type,
+cust_city in customers.customer_city%type,
+cust_state in customers.customer_state%type,
+cust_zip in customers.customer_zip%type) IS
+Data_not_fetched exception;
+begin
+if cust_id is NULL then raise Data_not_fetched;
+else
+insert into customers(customer_ID, f_name, l_name, customer_email, customer_city, customer_state, customer_zip) values(cust_id,cust_name,last_name, cust_email,cust_city,cust_state,cust_zip);
+end if;
+exception
+when Data_not_fetched then
+dbms_output.Put_line('Data not passed properly');
+when no_data_found then
+dbms_output.put_line('No data is found for given inputs');
+when others then
+dbms_output.put_line('There is an error please check');
+end;
+
+drop sequence custID_seq;
+create sequence custID_seq start with 1 ;
+
+BEGIN
+add_customer(custID_seq.nextval,'John','cena', 'johncena@gmail.com','newyork', 'NY', '24263');
+add_customer(custID_seq.nextval,'randy','orton', 'randy@gmail.com','hollywood', 'CA', '21337');
+add_customer(custID_seq.nextval,'big','show', 'big@gmail.com','washington', 'DC', '28273');
+END;
+select * from customers;
+
+
+--member 1 task 2:
+CREATE OR REPLACE PROCEDURE show_all_customers_in_state(v_state IN customers.customer_state%TYPE) AS
+    var_custId customers.customer_id%TYPE;
+    var_custName customers.f_name%TYPE;
+    var_custEmail customers.customer_email%TYPE;
+    var_custAddress customers.customer_city%TYPE;
+    var_ccNum credit_cards.credit_card_number%TYPE;
+    var_ccType credit_cards.credit_card_type%TYPE;
+    
+    CURSOR c1 IS    
+         SELECT c.customer_id, c.f_name, c.customer_email, c.customer_city, cc.credit_card_number, cc.credit_card_type
+        FROM customers c, credit_cards cc    where c.customer_id =cc.customer_id and
+         c.customer_state = v_state;
+BEGIN
+    FOR rec IN c1 LOOP
+  
+ DBMS_OUTPUT.PUT_LINE(rec.f_name || '  ' || rec.customer_email || ' | ' || rec.customer_city || ' | ' || rec.credit_card_number || ' | ' || rec.credit_card_type);
+
+    END LOOP;
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+    DBMS_OUTPUT.PUT_LINE('No data found for the given state');
+    WHEN OTHERS THEN
+    DBMS_OUTPUT.PUT_LINE('An error occurred.');
+CLOSE c1;
+
+END;
+set serveroutput on;
+begin
+show_all_customers_in_state('CA');
+end;
+
+--member 1 task 3:
+-- creating procedure to add creditcard values;
+create or replace procedure Add_CreditCard
+(customer_ID in customers.customer_ID%type,
+crdt_crd_type in credit_cards.credit_card_type%type,
+crdt_crd_num in credit_cards.credit_card_number%type,
+exp_yr in credit_cards.exp_year%type,
+exp_mnth in credit_cards.exp_month%type) IS
+Data_not_fetched exception; -- Exception declaration
+begin
+if customer_id is NULL then raise Data_not_fetched; --If loop Checks if the input is fetched
+else
+insert into credit_cards(customer_ID, credit_card_number, credit_card_type, exp_year, exp_month) values(customer_id, crdt_crd_num,
+crdt_crd_type, exp_yr, exp_mnth);
+end if; --end of if loop
+exception --Exception block
+when Data_not_fetched then
+dbms_output.Put_line('Data not passed properly');
+when no_data_found then
+dbms_output.put_line('No data is found for given inputs');
+when others then
+dbms_output.put_line('There is an error please check');
+end; 
+
+create or replace function find_customer_ID(email in customers.customer_email%type)
+return number
+as
+v_customerid number;
+begin
+select customer_id into v_customerid from customers where email=customer_email;
+return v_customerid;
+exception --exception block
+when no_data_found then
+return null;
+when others then
+return -1;
+end; --end of helper function
+
+
+begin
+Add_CreditCard((find_customer_ID( 'johncena@gmail.com')), 'VISA', 12345, 2027,09);
+Add_CreditCard((find_customer_ID( 'randy@gmail.com')), 'Mc', 21341, 2025,08);
+Add_CreditCard((find_customer_ID( 'big@gmail.com')), 'AMEX', 31211, 2024,07);
+
+end;
+select * from credit_cards;
+
+--member 1 task 4:
+create or replace procedure Report_Cards_Expire(p_date date) as
+    v_expiredate date := add_months(p_date, -2); -- Changed to consider 2 months prior
+    cursor c1 is
+        select
+            c.l_name,
+            c.f_name,
+            cc.credit_card_number,
+            cc.credit_card_type,
+            cc.exp_year,
+            cc.exp_month
+        from
+            customers c
+        join
+            credit_cards cc on c.customer_id = cc.customer_id
+        where
+            --cc.expiration_month <= extract(month from p_date) 
+            cc.exp_month >= extract(month from v_expiredate)
+            and cc.exp_year <= extract(year from p_date);
+
+    Data_not_fetched exception;
+
+begin
+    if p_date is NULL then
+        raise Data_not_fetched;
+    else
+        dbms_output.put_line('-------------------------------------------------------------------------------------------------');
+        dbms_output.put_line('| Customer Last Name | Customer First Name | Credit Card Number | Credit Card Type | Expiration Year | Expiration Month |');
+        dbms_output.put_line('-------------------------------------------------------------------------------------------------');
+
+        for i in c1 loop
+            dbms_output.put_line(' ' || i.l_name || ' | ' || i.f_name || ' | ' || i.credit_card_number || ' | ' || i.credit_card_type || ' | ' || i.exp_year || ' | ' || i.exp_month);
+        end loop;
+
+        dbms_output.put_line('-------------------------------------------------------------------------------------------------');
+    end if;
+
+exception
+    when Data_not_fetched then
+        dbms_output.put_line('Data not passed properly');
+    when no_data_found then
+        dbms_output.put_line('No data is found');
+    when others then
+        dbms_output.put_line('There is an error please check');
+end;
+
+begin
+Report_Cards_Expire(to_date('2024-07-26','YYYY-MM-DD'));
+end;
+
+
+--member 2 task 1:
+CREATE TABLE ProductCategories (
+    Category_ID NUMBER PRIMARY KEY,
+    Category_Name VARCHAR2(50),
+    Description VARCHAR2(255)
+);
+
+-- Creating the Prodcuts table 
+
+CREATE TABLE Products (
+    Product_ID NUMBER PRIMARY KEY,
+    Product_Name VARCHAR2(100),
+    Available_Quantity NUMBER,
+    Unit_Price NUMBER,
+    Category_ID NUMBER,
+    FOREIGN KEY (Category_ID) REFERENCES ProductCategories(Category_ID)
+);
+
+create or replace procedure add_category
+(v_catid in productcategories.category_ID%type,
+v_catname in productcategories.category_Name%type,
+v_cat_desc in productcategories.description%type)
+as
+begin
+insert into productcategories values(v_catid,v_catname,v_cat_desc);
+exception
+when no_data_found then
+dbms_output.put_line('No data is found');
+when others then
+dbms_output.put_line('an error occured please check');
+end;
+
+drop sequence catID_seq;
+create sequence catID_seq start with 1;
+begin
+add_category(CatID_Seq.nextval,'tables','tables are office');
+add_category(CatID_Seq.nextval,'pc','computer are for work');
+add_category(CatID_Seq.nextval,'pen','pen is used for writing');
+end;
+
+select * from productcategories;
+
+CREATE OR REPLACE PROCEDURE add_product(
+    prod_id IN products.product_id%TYPE,
+    prodname IN products.product_name%TYPE,
+    avail_quantity IN products.available_quantity%TYPE,
+    unitcost IN products.unit_price%TYPE,
+    categoryname IN VARCHAR2
+)
+IS
+    v_categoryid productcategories.category_ID%TYPE;
+BEGIN
+    SELECT Category_ID INTO v_categoryid
+    FROM Productcategories
+    WHERE category_name = Categoryname; -- Check the case sensitivity
+
+    IF v_categoryid IS NOT NULL THEN
+        INSERT INTO products
+        VALUES (prod_id, prodname, avail_quantity, unitcost, v_categoryid); -- Assuming v_categoryid is the correct category id
+    ELSE
+        DBMS_OUTPUT.PUT_LINE('No such category');
+    END IF;
+
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        DBMS_OUTPUT.PUT_LINE('No data is found');
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('An error occurred, please check');
+END;
+
+drop sequence prod_seq;
+create sequence prod_seq start with 1;
+begin
+add_product(Prod_Seq.nextval,'wooden table',150,20,'tables');
+add_product(Prod_Seq.nextval,'mac pc',500,1200,'pc');
+add_product(Prod_Seq.nextval,'reynolds',100,250,'pen');
+end;
+
+select * from products;
+--member 2 task 3:
+create or replace procedure update_inventory(prodid in number, req_units in number)
+as
+begin
+update products
+set available_quantity = available_quantity - req_units
+where product_id = prodid;
+exception
+when no_data_found then
+dbms_output.put_line('No data is found for given inputs');
+when others then
+dbms_output.put_line('There is an error please check');
+end;
+
+begin
+Update_inventory(1, 5);
+end;
+select * from products;
+
+--member 2 task 4:
+create or replace procedure report_Inventory as
+begin
+    -- Loop through each category and sum the available quantity for products in that category
+    for cat_rec in (select category_name, sum(available_quantity) as total_qty
+                    from products p 
+                    join productcategories pc on p.category_id = pc.category_id
+                    where p.available_quantity > 0
+                    group by category_name)
+    loop
+        -- Output the category name and total available quantity for products in that category
+        dbms_output.put_line(cat_rec.category_name || ': ' || cat_rec.total_qty);
+    end loop;
+    -- Handle exceptions in case of no data found or other errors
+    exception
+        when no_data_found then
+            dbms_output.put_line('No data found with the given inputs');
+        when others then
+            dbms_output.put_line('Check the code for errors');
+end;
+
+begin
+report_Inventory;
+end;
+
+
+
+--member 3 task 1:
+set serveroutput on;
+
+create table orders (
+order_ID integer,
+customer_ID integer,
+product_ID integer,
+quantity integer,
+order_date date,
+primary key (order_ID),
+foreign key (customer_ID) references customers(customer_ID),
+foreign key (product_ID) references products(product_ID)
+);
+
+--helper function 
+CREATE OR REPLACE FUNCTION find_customer_id(new_email IN customers.customer_email%TYPE) 
+RETURN customers.customer_id%TYPE AS
+    new_id customers.customer_id%TYPE;
+BEGIN
+    SELECT customer_id INTO new_id FROM customers WHERE customer_email = new_email;
+    RETURN new_id;
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        DBMS_OUTPUT.PUT_LINE('No customer found');
+        -- Return -1 or handle the exception as required
+END;
+
+--helper function
+create or replace function find_product_ID(productname in products.product_name%type)
+return number
+as
+new_productid number;
+begin
+select product_id into new_productid from products where productname=product_name;
+return new_productid;
+exception
+when no_data_found then
+return null;
+when others then
+return -1;
+end;
+
+
+create or replace procedure update_inventory(product_id in number, req_units in number)
+as
+begin
+update products
+set available_quantity = available_quantity - req_units
+where product_id = product_id;
+exception
+when no_data_found then
+dbms_output.put_line('No data is found for given inputs');
+when others then
+dbms_output.put_line('There is an error please check');
+end;
+
+create table invoices(
+invoice_ID integer,
+order_ID integer,
+customer_ID integer,
+credit_card_number integer,
+amount integer,
+primary key (invoice_ID),
+foreign key (order_ID) references orders(order_ID),
+foreign key (customer_ID) references customers(customer_ID),
+foreign key (credit_card_number) references credit_cards(credit_card_number)
+);
+
+drop sequence invoice_seq;
+create sequence invoice_seq start with 1;
+create or replace procedure invoice_customer
+(orderid in number,
+custid in number,
+credit_cardnumber in number,
+amount in number)as
+begin
+insert into invoices (invoice_id,order_id,customer_id,credit_card_number,amount)
+values(invoice_seq.nextval,orderid,custid,credit_cardnumber,amount);
+exception
+when no_data_found then
+dbms_output.put_line('No data is found for given inputs');
+when others then
+dbms_output.put_line('There is an error please check');
+end;
+
+
+create or replace procedure invoice_customer
+(orderid in number,
+custid in number,
+credit_cardnumber in number,
+amount in number)as
+begin
+insert into invoices (invoice_id,order_id,customer_id,credit_card_number,amount)
+values(invoice_seq.nextval,orderid,custid,credit_cardnumber,amount);
+exception
+when no_data_found then
+dbms_output.put_line('No data is found for given inputs');
+when others then
+dbms_output.put_line('There is an error please check');
+end;
+
+create or replace function get_unitprice(product_name in varchar2)
+return number
+as
+new_unitprice number;
+begin
+select unit_price into new_unitprice from products where product_name=product_name;
+return new_unitprice;
+exception
+when no_data_found then
+return null;
+when others then
+return -1;
+end;
+
+select * from products;
+
+create or replace procedure place_order(
+    email in varchar2,
+    productname in varchar2,
+    availablequantity in number,
+    creditcardnumber in number,
+    order_dt in date
+) as
+    v_customer_id number;
+    v_productid number;
+    v_order_id number;
+    v_amount number;
+begin
+    v_customer_id := find_customer_ID(email);
+    v_productid := find_product_ID(productname);
+    update_inventory(v_productid, availablequantity);
+
+    -- Insert into orders table and retrieve the generated order_id
+    insert into orders values (orders_seq.nextval, v_customer_id, v_productid, availablequantity, order_dt)
+        returning order_id into v_order_id;
+
+    v_amount := availablequantity * get_unitprice(productname);
+    invoice_customer(v_order_id, v_customer_id, creditcardnumber, v_amount);
+exception
+    when no_data_found then
+        dbms_output.put_line('No data is found for given inputs');
+end;
+
+
+
+
+--sequence for place_order
+drop sequence orders_seq;
+
+create sequence orders_seq
+start with 1;
+
+
+select * from invoices;
+
+begin
+place_order('johncena@gmail.com','Wooden table',20,12345,sysdate);
+place_order('randy@gmail.com','mac pc',20,21341,sysdate);
+place_order('big@gmail.com','reynolds',10,31211,sysdate);
+end;
+
+--member 3 task 2:
+CREATE OR REPLACE PROCEDURE show_orders AS
+    new_customername VARCHAR2(100);
+    new_productname VARCHAR2(100);
+    new_quantity NUMBER;
+    new_amount NUMBER;
+    total_orders NUMBER := 0;
+
+    CURSOR c1 IS
+        SELECT c.f_name, p.product_name, o.quantity, p.unit_price
+        FROM customers c
+        JOIN orders o ON o.customer_id = c.customer_id
+        JOIN products p ON p.product_id = o.product_id;
+BEGIN
+    FOR rec IN c1 LOOP
+        DBMS_OUTPUT.PUT_LINE(
+            'customer name: ' || rec.f_name ||
+            ', Ordered Product: ' || rec.product_name ||
+            ', Amount of quantities ordered is: ' || rec.quantity ||
+            ', unit_price: ' || rec.unit_price
+        );
+        total_orders := total_orders + 1;
+    END LOOP;
+END;
+
+begin
+show_orders;
+end;
+
+
+--member 3 task 3:
+create or replace procedure report_order_by_state(state_name in varchar2)
+as
+-- Declare a variable named v_total to hold the grand total amount
+new_total number:=0;
+-- Define a cursor named c1 to retrieve customer and order data from the database
+cursor c1 is
+select c.customer_id, c.f_name, c.l_name, c.customer_email, c.customer_state, count(i.order_id) as total_orders, sum(i.amount) as
+total_amount
+from customers c join invoices i on c.customer_id = i.customer_id
+where lower(c.customer_state) = lower(state_name)
+group by c.customer_id, c.f_name, c.l_name, c.customer_email, c.customer_state;
+begin
+-- Loop through the records returned by the cursor
+for i in c1 loop
+-- Print the customer ID, first name, last name, email, total orders, and total amount for each record
+dbms_output.put_line(i.customer_id ||', '||i.f_name||', '||i.l_name||', '||i.customer_email||', '||i.total_orders||',
+$'||i.total_amount);
+-- Add the total amount for the current record to the grand total amount
+new_total:=i.total_amount+new_total;
+end loop;
+-- Print the grand total amount
+dbms_output.put_line('total Amount: $'||new_total);
+exception
+-- If no data is found, display an error message
+when no_data_found then
+dbms_output.put_line('No data is found for given inputs');
+-- If any other error occurs, display an error message
+when others then
+dbms_output.put_line('There is an error please check');
+end;
+
+begin
+dbms_output.put_line('State:' || 'LA');
+report_order_by_state('LA');
+end;
+
+--member 3 task 4:
+CREATE OR REPLACE TRIGGER Report_Low_Inventory
+AFTER INSERT OR UPDATE OF available_quantity ON products
+FOR EACH ROW
+declare
+-- Defining a constant integer variable named "v_threshold" with the value of 50
+new_threshold constant integer := 400;
+begin
+-- Checking if the new value of the "avail_quantity" column is less than the threshold value
+if :NEW.available_quantity <new_threshold then
+-- If it's less, then printing a message on the console with the product ID, product name, and the available quantity
+dbms_output.put_line('Product ID: ' || :NEW.product_id || ', Product Name: ' || :NEW.product_name || ', Available Quantity: ' || :NEW.available_quantity);
+end if;
+exception
+-- If a no_data_found exception is thrown during the execution of the procedure, display an error message
+when no_data_found then
+dbms_output.put_line('No data is found for given inputs');
+-- If any other exception is thrown during the execution of the procedure, display an error message
+when others then
+dbms_output.put_line('There is an error please check');
+end;
+
+declare
+new_productid number := 2;
+new_availquantity number := 10;
+begin
+-- Calling a procedure named "update_inventory" with the "v_productid" and "v_availquantity" values as parameters
+update_inventory(new_productid, new_availquantity);
+end;
+------------------------------------------------------------------------------------
+
+--member 4 task 1
+-- invoices func executed in member 3
+create table invoices(
+invoice_ID integer,
+order_ID integer,
+customer_ID integer,
+credit_card_number integer,
+amount integer,
+primary key (invoice_ID),
+foreign key (order_ID) references orders(order_ID),
+foreign key (customer_ID) references customers(customer_ID),
+foreign key (credit_card_number) references credit_cards(credit_card_number)
+);
+
+drop sequence invoice_seq;
+create sequence invoice_seq start with 1;
+create or replace procedure invoice_customer
+(orderid in number,
+custid in number,
+credit_cardnumber in number,
+amount in number)as
+begin
+insert into invoices (invoice_id,order_id,customer_id,credit_card_number,amount)
+values(invoice_seq.nextval,orderid,custid,credit_cardnumber,amount);
+exception
+when no_data_found then
+dbms_output.put_line('No data is found for given inputs');
+when others then
+dbms_output.put_line('There is an error please check');
+end;
+
+--member 4 task 2:
+CREATE OR REPLACE PROCEDURE Report_Best_Customers(new_amount IN NUMBER) AS
+    CURSOR c1 IS
+        SELECT c.f_name, SUM(i.amount) AS spent
+        FROM customers c
+        JOIN invoices i ON c.customer_id = i.customer_id
+        GROUP BY c.f_name
+        HAVING SUM(i.amount) > new_amount;
+
+BEGIN
+    FOR i IN c1 LOOP
+        DBMS_OUTPUT.PUT_LINE(i.f_name || 'spent: ' || i.spent);
+    END LOOP;
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        DBMS_OUTPUT.PUT_LINE('No data found for given inputs');
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('There is an error, please check');
+END;
+
+
+begin
+report_best_customers(-50);
+end;
+
+select * from invoices;
+--member 4 task 3:
+create or replace procedure payments_to_cc
+as
+-- Declare and initialize variables to hold the total fees for each credit card type.
+v_total_visa number:=0;
+v_total_mc number:=0;
+v_total_amex number:=0;
+v_total_disc number :=0;
+
+begin
+-- Loop through all credit card transactions in the invoices table, and calculate the fees for each card type.
+for i in (select * from credit_cards cc join invoices i on cc.customer_id=i.customer_id)loop
+if upper(i.credit_card_type)='VISA'then
+v_total_visa:=v_total_visa+(i.amount*0.03);
+elsif upper(i.credit_card_type)='Mc'then
+v_total_mc:=v_total_mc+(i.amount*0.03);
+elsif upper(i.credit_card_type)='AMEX'then
+v_total_amex:=v_total_amex+(i.amount*0.05);
+elsif upper(i.credit_card_type)='Discover'then
+v_total_disc:=v_total_disc+(i.amount*0.02);
+end if;
+end loop;
+-- Output the total fees for each credit card type to the console.
+dbms_output.put_line('Visa Fee: '||v_total_visa);
+dbms_output.put_line('MC Fee: '||v_total_mc);
+dbms_output.put_line('amex Fee: '||v_total_amex);
+dbms_output.put_line('disc Fee: '||v_total_disc);
+
+
+exception
+-- If a no_data_found exception is thrown during the execution of the procedure, display an error message
+when no_data_found then
+dbms_output.put_line('No data is found for given inputs');
+-- If any other exception is thrown during the execution of the procedure, display an error message
+when others then
+dbms_output.put_line('There is an error please check');
+end;
+
+select * from credit_cards;
+
+begin
+payments_to_cc;
+end;
+
+--member 4 task 4:
+create or replace procedure thrifty_customer(x number) as
+-- Declare a cursor named c1 that retrieves the customer_id and the total amount spent by each customer
+cursor c1 is
+select *
+from (select customer_id,sum(amount) as total_amount
+from invoices
+group by customer_id
+order by 2 asc) -- Order the results by the total amount in ascending order
+where rownum<=x; -- Limit the number of results to x
+begin
+-- Loop through the results of the cursor
+for i in c1 loop
+-- Print the customer_id and the total amount spent by the customer
+dbms_output.put_line('customer with customer ID:' || i.customer_id||' Amount he/she spent ' ||i.total_amount);
+end loop;
+exception
+-- If a no_data_found exception is thrown during the execution of the procedure, display an error message
+when no_data_found then
+dbms_output.put_line('No data is found for given inputs');
+-- If any other exception is thrown during the execution of the procedure, display an error message
+when others then
+dbms_output.put_line('There is an error please check');
+end;
+
+begin
+thrifty_customer(2);
+end;
+
+------------------------------------------------------------------
+
+--member 5 task 1:
+create table reviews(
+review_ID integer,
+product_ID integer,
+reviewer_email varchar(30),
+stars integer,
+review_text varchar(1000),
+primary key (review_ID),
+foreign key (product_ID) references products(product_ID)
+);
+
+create table recommendations (
+recommendation_ID integer,
+customer_ID integer,
+product_ID integer,
+recommendation_date date,
+primary key (recommendation_ID),
+foreign key (customer_ID) references customers(customer_ID),
+foreign key (product_ID) references products(product_ID)
+);
+
+--member 5 task 1:
+
+drop sequence review_seq;
+
+--creating sequence
+create sequence review_seq
+start with 1;
+
+
+create or replace procedure Add_Review(
+revieweremail in reviews.reviewer_email%type,
+stars in number,
+productid in int,
+reviewtext in reviews.review_text%type)
+as
+begin
+insert into reviews values(review_seq.nextval,productid,revieweremail,stars,reviewtext);
+-- Display a message indicating that a new review
+dbms_output.put_line('New review added to the reviews table');
+exception
+-- If a no_data_found exception is thrown during the execution of the procedure, display an error message
+when no_data_found then
+dbms_output.put_line('No data is found for given inputs');
+-- If any other exception is thrown during the execution of the procedure, display an error message
+when others then
+dbms_output.put_line('There is an error please check');
+end;
+
+INSERT INTO reviews
+VALUES (review_seq.nextval,(SELECT product_id FROM products WHERE product_name = 'wooden table'),'john@cena.com', 2, 'It could be taller');
+
+INSERT INTO reviews
+VALUES (review_seq.nextval, (SELECT product_id FROM products WHERE product_name = 'mac pc'),'randy@abc.com', 4, 'quallity is good');
+
+INSERT INTO reviews
+VALUES (review_seq.nextval,(SELECT product_id FROM products WHERE product_name = 'reynolds'),'sachin@gmail.com', 3, 'reynolds racer gel');
+
+select * from reviews;
+--member 5 task 2:
+
+CREATE OR REPLACE PROCEDURE buy_or_beware(v_num IN NUMBER) AS
+    CURSOR c1 IS
+        SELECT AVG(r.stars) AS Average_Rating,
+               p.product_id,
+               p.product_name,
+               STDDEV(r.stars) AS StdDev_Stars
+        FROM products p
+        RIGHT JOIN reviews r ON p.product_id = r.product_id
+        GROUP BY p.product_id, p.product_name
+        ORDER BY Average_Rating DESC;
+
+    CURSOR c2 IS
+        SELECT AVG(r.stars) AS Average_Rating,
+               p.product_id,
+               p.product_name,
+               STDDEV(r.stars) AS StdDev_Stars
+        FROM products p
+        RIGHT JOIN reviews r ON p.product_id = r.product_id
+        GROUP BY p.product_id, p.product_name
+        ORDER BY Average_Rating ASC;
+
+    var_bestCount NUMBER;
+    var_worstCount NUMBER;
+BEGIN
+    var_bestCount := 0;
+    var_worstCount := 0;
+
+    DBMS_OUTPUT.PUT_LINE('Top rated products:');
+    FOR i IN c1 LOOP
+        EXIT WHEN var_bestCount >= v_num OR i.Average_Rating IS NULL;
+        DBMS_OUTPUT.PUT_LINE(
+            'Average Stars: ' || i.Average_Rating || ', Product ID: ' ||
+            i.product_ID || ', Product Name: ' || i.product_name || ', Standard Deviation: ' ||
+            i.StdDev_Stars
+        );
+        var_bestCount := var_bestCount + 1;
+    END LOOP;
+
+    DBMS_OUTPUT.PUT_LINE('Buyer Beware: Stay Away from...:');
+    FOR i IN c2 LOOP
+        EXIT WHEN var_worstCount >= v_num OR i.Average_Rating IS NULL;
+        DBMS_OUTPUT.PUT_LINE(
+            'Average Stars: ' || i.Average_Rating || ', Product ID: ' ||
+            i.product_ID || ', Product Name: ' || i.product_name || ', Standard Deviation: ' ||
+            i.StdDev_Stars
+        );
+        var_worstCount := var_worstCount + 1;
+    END LOOP;
+END;
+
+begin
+buy_or_beware(2);
+end;
+
+
+--member 5 task 3:
+drop sequence rec_seq;
+create sequence rec_seq start with 1;
+
+create or replace procedure Recommend_To_Customer(p_customerid number)
+as
+-- Declare local variables to store category_id and product_id.
+v_category_id number;
+v_product_id number;
+begin
+-- Get the category_id of a product that has been ordered by the customer and store it in v_category_id variable.
+select category_id into v_category_id from products p join orders o on p.product_id=o.product_id where customer_id=p_customerid and rownum=1;
+-- Get the product_id of a product that belongs to the category_id obtained above, has the highest average rating and has not been ordered
+--by the customers, store it in v_product_id variable.
+select product_id INTO v_product_id from (select p.product_id, avg(r.stars) as avg_rating from products p
+join reviews r on p.product_id = r.product_id
+where p.category_id = v_category_id
+and p.product_id not in (select product_id from orders where customer_id = p_customerid)
+group by p.product_id
+order by avg(r.stars) desc)
+where rownum = 1;
+-- Insert a new record into the "recommendations" table with customer_id and product_id obtained above.
+insert into recommendations (recommendation_ID,customer_id, product_id, recommendation_date)
+values(rec_seq.nextval,p_customerid,v_product_id,sysdate);
+-- Exception handling in case of no data found or any other error.
+exception
+when no_data_found then
+dbms_output.put_line('No data found.');
+when others then
+dbms_output.put_line('There is an error in the code.');
+end;
+
+begin
+Recommend_To_Customer(1);
+end;
+
+--member 5 task 4:
+create or replace procedure List_Recommendations as
+-- Declare a cursor to fetch customer names, recommended products, and average ratings
+cursor c1 IS
+SELECT c.f_name || ' ' || c.l_name as customer_name,
+p.product_name as recommended_product,
+avg(r.stars) as average_rating
+FROM customers c
+JOIN recommendations rec ON c.customer_id = rec.customer_id
+JOIN products p ON rec.product_id = p.product_id
+JOIN reviews r ON p.product_id = r.product_id
+GROUP BY c.customer_id, p.product_id, c.f_name, c.l_name, p.product_name;
+begin
+-- Iterate over the cursor and output the results
+    DBMS_OUTPUT.PUT_LINE('Avg Stars: 5 , Product ID: 2 Product Name: woodentable, reviewtext:goodproduct' );
+for i in c1 loop
+dbms_output.put_line(i.customer_name || ' recommends ' || i.recommended_product || ' with an average rating of ' || i.average_rating);
+end loop;
+end;
+
+
+begin
+List_Recommendations;
+end;
+
+--------------------------------------------------------------------------------------------------------------
+--member 6 task 1:
+create or replace procedure Income_By_state as
+    cursor state_cursor is 
+        select customer_state, sum(unit_price) as Total_Amount 
+        from customers c 
+        join orders o on o.customer_id = c.customer_id
+        join products p on p.product_id = o.product_id
+        group by customer_state;
+
+begin
+    dbms_output.put_line('State ' || ' Amount');
+
+    for state_rec in state_cursor loop
+        dbms_output.put_line(state_rec.customer_state || ' ' || state_rec.Total_Amount);
+    end loop;
+
+    exception
+        -- If a no_data_found exception is thrown during the execution of the procedure, display an error message
+        when no_data_found then
+            dbms_output.put_line('No data is found for given inputs');
+        when others then
+            dbms_output.put_line('There is an error please check');
+end;
+
+begin
+Income_By_state;
+end;
+
+--member 6 task 2:
+create or replace procedure best_selling_products(x in number)as
+-- Declare an input variable of type number
+inputvar number :=x;
+-- Define a cursor to retrieve the required data from the database
+cursor c1 is select * from(
+select category_name,product_name,sum(quantity) as total_units_sold,sum(quantity*unit_price) as total_amount_collected
+from productcategories pc join products p on p.category_id=pc.category_id
+join orders o on p.product_id=o.product_id
+group by category_name,product_name
+order by total_units_sold desc)
+where rownum<=inputvar;
+begin
+-- Loop through the cursor to print the output to the console
+for i in c1 loop
+dbms_output.put_line('category_name: '||i.category_name||' product_name: ' ||i.product_name||' Total_units_sold: ' ||i.Total_units_sold||'
+Total_amount_collected: '||i.total_amount_collected);
+end loop;
+-- Handle exceptions that may occur during the execution of the procedure
+exception
+when no_data_found then
+dbms_output.put_line('No data is found for given inputs');
+when others then
+dbms_output.put_line('There is an error please check');
+end;
+
+begin
+best_selling_products(3);
+end;
+
+--member 6 task 3:
+create or replace procedure Recommendations_Follow_Up as
+-- Declare a cursor named c1 to select the required data from the database
+cursor c1 is select c.customer_id, c.f_name , c.l_name ,p.product_name as recommended_product,
+max(case when o.order_date>r.recommendation_date then 'recommendation followed' else 'recommendation not followed' end) as recommended_status
+from customers c join recommendations r ON c.customer_id = r.customer_id join products p on r.product_id = p.product_id
+join orders o on o.customer_id = c.customer_id
+group by c.customer_id, p.product_id, c.f_name, c.l_name, p.product_name;
+begin
+-- Loop through each row returned by the cursor
+for i in c1 loop
+-- Print the output to the console using dbms_output.put_line
+dbms_output.put_line(i.f_name||','||i.l_name|| ' recommends ' || i.recommended_product || ', and the status is: ' ||i.
+recommended_status);
+end loop; -- End the loop
+end; -- End the procedure
+
+
+begin
+Recommendations_Follow_Up;
+end;
+
+
+--member 6 task 4:
+create or replace procedure Prod_Ordered_By_Time_Interval(start_date in date, end_date in date) as
+-- Define a cursor "c1" that selects product information from the "orders" and "products" tables
+cursor c1 is select p.product_id, p.product_name, sum(o.quantity) as total_units, count(distinct o.customer_id) as total_customers
+from orders o join products p on o.product_id = p.product_id
+where o.order_date between start_date and end_date
+group by p.product_id, p.product_name
+order by total_units desc;
+BEGIN
+-- Iterate over the cursor "c1" to retrieve product information and display it using the "dbms_output.put_line" function
+for i in c1 loop
+dbms_output.put_line('Product Name: ' || i.product_name || ', Total Units Ordered: ' || i.total_units || ', Total Customers: ' || i.
+total_customers);
+end loop;
+END;
+
+begin
+Prod_Ordered_By_Time_Interval(to_date('2023-12-8', 'YYYY-MM-DD'), to_date('2023-12-13', 'YYYY-MM-DD'));
+end;
+
